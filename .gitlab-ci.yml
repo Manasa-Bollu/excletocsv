@@ -33,12 +33,15 @@ sync_to_github:
     
     - git clone https://x-access-token:${GH_TOKEN}@github.com/Manasa-Bollu/storecsv.git github_sync
     
-    # Use -a to preserve file structure and prevent errors if folder is empty
-    - cp -a version_history/. github_sync/
+    # 1. Create the destination folder in the cloned repo if it doesn't exist
+    - mkdir -p github_sync/data_exports/
+    
+    # 2. Copy the contents of version_history/ into that specific folder
+    - cp -a version_history/. github_sync/data_exports/
     
     - cd github_sync
     - git add .
-    - git commit -m "Auto-update changed files from GitLab [skip ci]" || echo "No changes to commit"
+    - git commit -m "Auto-update changed files to data_exports/ [skip ci]" || echo "No changes to commit"
     - git push origin main
   only:
     changes:
