@@ -1,36 +1,56 @@
 import pandas as pd
 import os
 import sys
+from pathlib import Path
+from typing import List
 
-# 1. Define and create the output directory
-output_dir = "version_history"
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
+OUTPUT_DIR = Path("version_history")
 
-# 2. Get files from command line arguments (passed by xargs)
-excel_files = sys.argv[1:]
-
-if not excel_files:
-    print("No Excel files provided to the script!")
-    sys.exit(0)
-
-for excel_file in excel_files:
-    if not os.path.exists(excel_file):
+def process_file(excel_file: Path):
+    """
+    Reads an Excel file, converts each sheet to a CSV file, and saves it
+    to the output directory.
+    """
+    if not excel_file.is_file():
         print(f"File not found: {excel_file}")
-        continue
+        return
 
     print(f"Processing {excel_file}...")
-    xl = pd.ExcelFile(excel_file)
-    base_name = os.path.basename(excel_file).replace(".xlsx", "")
-    
-    for sheet_name in xl.sheet_names:
-        df = xl.parse(sheet_name)
+    try:
+        xl = pd.ExcelFile(excel_file)
+        base_name = excel_file.stem  # Gets filename without extension
         
-        if len(xl.sheet_names) == 1:
-            csv_filename = f"{base_name}.csv"
-        else:
-            csv_filename = f"{base_name}_{sheet_name}.csv"
-        
-        csv_path = os.path.join(output_dir, csv_filename)
-        df.to_csv(csv_path, index=False)
-        print(f"  -> Saved {csv_path}")
+        for sheet_name in xl.sheet_names:
+            df = xl.parse(sheet_name)
+
+            # Replace newlines in object columns to prevent multi-line rows in CSV
+            for col in df.select_dtypes(include=['object']):
+                df[col] = df[col].astype(str).str.replace('\r\n', ' ', regex=False).str.replace('\n', ' ', regex=False)
+            
+            # Sanitize sheet_name for use in filename
+            safe_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '_')).rstrip()
+
+            if len(xl.sheet_names) == 1:
+                csv_filename = f"{base_name}.csv"
+            else:
+                csv_filename = f"{base_name}_{safe_sheet_name}.csv"
+            
+            csv_path = OUTPUT_DIR / csv_filename
+            df.to_csv(csv_path, index=False)
+            print(f"  -> Saved {csv_path}")
+    except Exception as e:
+        print(f"Error processing {excel_file}: {e}")
+
+def main(files: List[str]):
+    """Main function to process a list of Excel files."""
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    if not files:
+        print("No Excel files provided to the script. Exiting.")
+        return
+
+    for file_path in files:
+        process_file(Path(file_path))
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
