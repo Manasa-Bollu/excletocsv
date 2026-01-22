@@ -20,7 +20,7 @@ track_excel_changes:
     changes:
       - "*.xlsx"
 
-sync_to_github:
+sync_to_gitlab_repo:
   stage: deploy
   image: alpine:latest
   dependencies:
@@ -28,20 +28,26 @@ sync_to_github:
   before_script:
     - apk add git
   script:
-    - git config --global user.email "Manasa.Bollu@bilvantis.io"
-    - git config --global user.name "Manasa-Bollu"
+    # 1. Setup git identity
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git config --global user.name "$GITLAB_USER_NAME"
     
-    - git clone https://x-access-token:${GH_TOKEN}@github.com/Manasa-Bollu/storecsv.git github_sync
+    # 2. Clone the target GitLab repository (using 'gitlab_sync' as the local folder)
+    - git clone https://oauth2:${GL_TOKEN}@gitlab.com/minkumin/storecsv.git gitlab_sync
     
-    # 1. Create the destination folder in the cloned repo if it doesn't exist
-    - mkdir -p github_sync/data_exports/
+    # 3. Create the destination folder inside the CLONED repository folder
+    # FIX: Changed 'github_sync' to 'gitlab_sync'
+    - mkdir -p gitlab_sync/data_exports/
     
-    # 2. Copy the contents of version_history/ into that specific folder
-    - cp -a version_history/. github_sync/data_exports/
+    # 4. Copy the contents of version_history/ into that specific folder
+    # FIX: Changed 'github_sync' to 'gitlab_sync'
+    - cp -a version_history/. gitlab_sync/data_exports/
     
-    - cd github_sync
+    # 5. Push changes
+    - cd gitlab_sync
     - git add .
-    - git commit -m "Auto-update changed files to data_exports/ [skip ci]" || echo "No changes to commit"
+    # Captures your exact Excel commit message
+    - git commit -m "$CI_COMMIT_MESSAGE" || echo "No changes to commit"
     - git push origin main
   only:
     changes:
